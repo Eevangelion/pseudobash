@@ -1,66 +1,49 @@
 use {
     crate::{
+        executor::{Executor, execute::Execute},
         global_state::GlobalState,
-        inner_utils::InnerUtils,
         listener::Listener,
-        parser::{Parser, program_builder::program::Program},
+        parser::Parser,
         program_output::ProgramOutput,
     },
-    std::io::Write,
+    std::{io::Write, marker::PhantomData},
 };
 
 #[derive(Default)]
-pub struct CLI {
+pub struct CLI<E: Execute, P: Default + Parser<E>> {
     listener: Listener,
-    parser: Parser,
-    inner_utils: InnerUtils,
+    parser: P,
+    executor: Executor,
     global_state: GlobalState,
+
+    phantom_data: PhantomData<E>,
 }
 
-impl CLI {
+impl<E: Execute, P: Default + Parser<E>> CLI<E, P> {
     pub fn start(&mut self) {
         loop {
             print!("{} ", self.global_state.settings.get_invitation_input());
             std::io::stdout().flush().unwrap();
 
-            let _: Vec<()> = self
-                .parse(self.listener.listen())
-                .into_iter()
-                .map(|program| {
-                    Self::print_output(program.execute(&mut self.global_state, &self.inner_utils))
-                })
-                .collect();
-        }
-    }
+            self.parser
+                .set_input(&mut self.listener.listen().into_bytes());
 
-    fn parse(&mut self, input: String) -> Vec<Program> {
-        let mut result = Vec::new();
-        if input.len() > 1 {
-            for byte in input.as_bytes() {
-                match self.parser.apply(*byte) {
-                    Ok(Some(program)) => result.push(program),
-                    Ok(None) => {}
+            for pipeline in &mut self.parser {
+                match pipeline {
+                    Ok(executable) => Self::print_output(
+                        self.executor.execute(executable, &mut self.global_state),
+                    ),
                     Err(e) => eprintln!("Parser error: {}", e),
                 }
             }
-            match self.parser.finish() {
-                Ok(Some(program)) => result.push(program),
-                Ok(None) => {}
-                Err(e) => eprintln!("Parser error: {}", e),
-            }
         }
-        result
     }
 
     fn print_output(output: anyhow::Result<ProgramOutput>) {
         match output {
             Ok(program_output) => match program_output.code {
-                0 => print!("{}", String::from_utf8_lossy(&program_output.stdout)),
-                _ => eprintln!(
-                    "Program exited with code {}. Error: {}",
-                    program_output.code,
-                    String::from_utf8_lossy(&program_output.stderr)
-                ),
+                0 => print!("{}", program_output),
+                _ => eprintln!("{}", program_output),
             },
             Err(e) => eprintln!("Executing error: {}", e),
         }
@@ -69,18 +52,31 @@ impl CLI {
 
 #[cfg(test)]
 mod test {
-    use crate::{cli::CLI, program_output::ProgramOutput};
+    use crate::{
+        cli::CLI,
+        parser::{
+            CLIParser, Parser,
+            arg_builder::ArgBuilder,
+            pipeline_builder::{PipelineBuilder, pipeline::Pipeline},
+            program_builder::ProgramBuilder,
+            token::Token,
+        },
+        program_output::ProgramOutput,
+    };
 
     #[test]
     fn check_var_setter() {
-        let mut cli: CLI = CLI::default();
+        let mut cli: CLI<
+            Pipeline,
+            CLIParser<Pipeline, PipelineBuilder<ProgramBuilder<ArgBuilder<Token>>>>,
+        > = CLI::default();
 
-        let output: Vec<ProgramOutput> = cli
-            .parse("  qwe=1278\n".to_string())
+        cli.parser.set_input(&mut b"  qwe=1278\n".to_vec());
+        let output: Vec<ProgramOutput> = (&mut cli.parser)
             .into_iter()
-            .map(|program| {
-                program
-                    .execute(&mut cli.global_state, &cli.inner_utils)
+            .map(|pipeline| {
+                cli.executor
+                    .execute(pipeline.unwrap(), &mut cli.global_state)
                     .unwrap()
             })
             .collect();
@@ -89,12 +85,12 @@ mod test {
         assert_eq!(var, "1278".as_bytes().to_vec());
         assert_eq!(output, vec![ProgramOutput::new(0, vec![], vec![])]);
 
-        let output: Vec<ProgramOutput> = cli
-            .parse("  qwe==10\n".to_string())
+        cli.parser.set_input(&mut b"  qwe==10\n".to_vec());
+        let output: Vec<ProgramOutput> = (&mut cli.parser)
             .into_iter()
-            .map(|program| {
-                program
-                    .execute(&mut cli.global_state, &cli.inner_utils)
+            .map(|pipeline| {
+                cli.executor
+                    .execute(pipeline.unwrap(), &mut cli.global_state)
                     .unwrap()
             })
             .collect();
@@ -103,12 +99,12 @@ mod test {
         assert_eq!(var, "=10".as_bytes().to_vec());
         assert_eq!(output, vec![ProgramOutput::new(0, vec![], vec![])]);
 
-        let output: Vec<ProgramOutput> = cli
-            .parse("  qwe=qwe\n".to_string())
+        cli.parser.set_input(&mut b"  qwe=qwe\n".to_vec());
+        let output: Vec<ProgramOutput> = (&mut cli.parser)
             .into_iter()
-            .map(|program| {
-                program
-                    .execute(&mut cli.global_state, &cli.inner_utils)
+            .map(|pipeline| {
+                cli.executor
+                    .execute(pipeline.unwrap(), &mut cli.global_state)
                     .unwrap()
             })
             .collect();
@@ -117,12 +113,12 @@ mod test {
         assert_eq!(var, "qwe".as_bytes().to_vec());
         assert_eq!(output, vec![ProgramOutput::new(0, vec![], vec![])]);
 
-        let output: Vec<ProgramOutput> = cli
-            .parse("  qwe=\n".to_string())
+        cli.parser.set_input(&mut b"  qwe=\n".to_vec());
+        let output: Vec<ProgramOutput> = (&mut cli.parser)
             .into_iter()
-            .map(|program| {
-                program
-                    .execute(&mut cli.global_state, &cli.inner_utils)
+            .map(|pipeline| {
+                cli.executor
+                    .execute(pipeline.unwrap(), &mut cli.global_state)
                     .unwrap()
             })
             .collect();
@@ -131,12 +127,12 @@ mod test {
         assert_eq!(var, "".as_bytes().to_vec());
         assert_eq!(output, vec![ProgramOutput::new(0, vec![], vec![])]);
 
-        let output: Vec<ProgramOutput> = cli
-            .parse("  qwe='10$10'\n".to_string())
+        cli.parser.set_input(&mut b"  qwe='10$10'\n".to_vec());
+        let output: Vec<ProgramOutput> = (&mut cli.parser)
             .into_iter()
-            .map(|program| {
-                program
-                    .execute(&mut cli.global_state, &cli.inner_utils)
+            .map(|pipeline| {
+                cli.executor
+                    .execute(pipeline.unwrap(), &mut cli.global_state)
                     .unwrap()
             })
             .collect();
@@ -145,12 +141,12 @@ mod test {
         assert_eq!(var, "10$10".as_bytes().to_vec());
         assert_eq!(output, vec![ProgramOutput::new(0, vec![], vec![])]);
 
-        let output: Vec<ProgramOutput> = cli
-            .parse("x=$PWD\n".to_string())
+        cli.parser.set_input(&mut b"x=$PWD\n".to_vec());
+        let output: Vec<ProgramOutput> = (&mut cli.parser)
             .into_iter()
-            .map(|program| {
-                program
-                    .execute(&mut cli.global_state, &cli.inner_utils)
+            .map(|pipeline| {
+                cli.executor
+                    .execute(pipeline.unwrap(), &mut cli.global_state)
                     .unwrap()
             })
             .collect();
@@ -161,12 +157,12 @@ mod test {
         assert_eq!(var, x);
         assert_eq!(output, vec![ProgramOutput::new(0, vec![], vec![])]);
 
-        let output: Vec<ProgramOutput> = cli
-            .parse("x=$PWD:9\n".to_string())
+        cli.parser.set_input(&mut b"x=$PWD:9\n".to_vec());
+        let output: Vec<ProgramOutput> = (&mut cli.parser)
             .into_iter()
-            .map(|program| {
-                program
-                    .execute(&mut cli.global_state, &cli.inner_utils)
+            .map(|pipeline| {
+                cli.executor
+                    .execute(pipeline.unwrap(), &mut cli.global_state)
                     .unwrap()
             })
             .collect();
@@ -182,14 +178,17 @@ mod test {
 
     #[test]
     fn check_var_getter() {
-        let mut cli: CLI = CLI::default();
+        let mut cli: CLI<
+            Pipeline,
+            CLIParser<Pipeline, PipelineBuilder<ProgramBuilder<ArgBuilder<Token>>>>,
+        > = CLI::default();
 
-        let output: Vec<ProgramOutput> = cli
-            .parse(" echo $PWD\n".to_string())
+        cli.parser.set_input(&mut b" echo $PWD\n".to_vec());
+        let output: Vec<ProgramOutput> = (&mut cli.parser)
             .into_iter()
-            .map(|program| {
-                program
-                    .execute(&mut cli.global_state, &cli.inner_utils)
+            .map(|pipeline| {
+                cli.executor
+                    .execute(pipeline.unwrap(), &mut cli.global_state)
                     .unwrap()
             })
             .collect();
@@ -198,12 +197,12 @@ mod test {
         var.push(b'\n');
         assert_eq!(output, vec![ProgramOutput::new(0, var, vec![])]);
 
-        let output: Vec<ProgramOutput> = cli
-            .parse(" echo $PWD $PWD\n".to_string())
+        cli.parser.set_input(&mut b" echo $PWD $PWD\n".to_vec());
+        let output: Vec<ProgramOutput> = (&mut cli.parser)
             .into_iter()
-            .map(|program| {
-                program
-                    .execute(&mut cli.global_state, &cli.inner_utils)
+            .map(|pipeline| {
+                cli.executor
+                    .execute(pipeline.unwrap(), &mut cli.global_state)
                     .unwrap()
             })
             .collect();
@@ -214,12 +213,12 @@ mod test {
         var.last_mut().map(|byte| *byte = b'\n');
         assert_eq!(output, vec![ProgramOutput::new(0, var, vec![])]);
 
-        let output: Vec<ProgramOutput> = cli
-            .parse(" echo $PWD$PWD\n".to_string())
+        cli.parser.set_input(&mut b" echo $PWD$PWD\n".to_vec());
+        let output: Vec<ProgramOutput> = (&mut cli.parser)
             .into_iter()
-            .map(|program| {
-                program
-                    .execute(&mut cli.global_state, &cli.inner_utils)
+            .map(|pipeline| {
+                cli.executor
+                    .execute(pipeline.unwrap(), &mut cli.global_state)
                     .unwrap()
             })
             .collect();
@@ -229,12 +228,12 @@ mod test {
         var.push(b'\n');
         assert_eq!(output, vec![ProgramOutput::new(0, var, vec![])]);
 
-        let output: Vec<ProgramOutput> = cli
-            .parse(" echo $PWDPWD\n".to_string())
+        cli.parser.set_input(&mut b" echo $PWDPWD\n".to_vec());
+        let output: Vec<ProgramOutput> = (&mut cli.parser)
             .into_iter()
-            .map(|program| {
-                program
-                    .execute(&mut cli.global_state, &cli.inner_utils)
+            .map(|pipeline| {
+                cli.executor
+                    .execute(pipeline.unwrap(), &mut cli.global_state)
                     .unwrap()
             })
             .collect();
@@ -246,12 +245,18 @@ mod test {
 
     #[test]
     fn check_error() {
-        let mut cli: CLI = CLI::default();
+        let mut cli: CLI<
+            Pipeline,
+            CLIParser<Pipeline, PipelineBuilder<ProgramBuilder<ArgBuilder<Token>>>>,
+        > = CLI::default();
 
-        let output: Vec<anyhow::Result<ProgramOutput>> = cli
-            .parse("  '1'\n".to_string())
+        cli.parser.set_input(&mut b"  '1'\n".to_vec());
+        let output: Vec<anyhow::Result<ProgramOutput>> = (&mut cli.parser)
             .into_iter()
-            .map(|program| program.execute(&mut cli.global_state, &cli.inner_utils))
+            .map(|pipeline| {
+                cli.executor
+                    .execute(pipeline.unwrap(), &mut cli.global_state)
+            })
             .collect();
         assert!(output.iter().all(|res| res.is_err()));
     }

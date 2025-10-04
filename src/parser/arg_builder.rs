@@ -1,6 +1,6 @@
 pub mod arg;
 
-use crate::parser::{arg_builder::arg::Arg, context::Context, token::Token};
+use crate::parser::{arg_builder::arg::Arg, builder::Builder, context::Context, token::Token};
 
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
 pub enum ArgBuilderState {
@@ -12,13 +12,13 @@ pub enum ArgBuilderState {
 }
 
 #[derive(Default, Debug, PartialEq, Eq)]
-pub struct ArgBuilder {
+pub struct ArgBuilder<T: Default + Builder<Token>> {
     current_arg: Arg,
-    current_token: Token,
+    token_builder: T,
 }
 
-impl ArgBuilder {
-    pub fn apply(&mut self, byte: u8, context: &mut Context) -> anyhow::Result<Option<Arg>> {
+impl<T: Default + Builder<Token>> Builder<Arg> for ArgBuilder<T> {
+    fn apply(&mut self, byte: u8, context: &mut Context) -> anyhow::Result<Option<Arg>> {
         match byte {
             b'\'' => match context.arg_builder_state {
                 ArgBuilderState::Default => {
@@ -28,8 +28,9 @@ impl ArgBuilder {
                 ArgBuilderState::WeakSep => {}
                 ArgBuilderState::StrongSep => {
                     context.arg_builder_state = ArgBuilderState::Default;
-                    self.current_token
+                    self.token_builder
                         .finish(context)
+                        .unwrap()
                         .map(|token| self.current_arg.push(token));
                     return Ok(self.return_if_not_empty(context));
                 }
@@ -41,8 +42,9 @@ impl ArgBuilder {
                 }
                 ArgBuilderState::WeakSep => {
                     context.arg_builder_state = ArgBuilderState::Default;
-                    self.current_token
+                    self.token_builder
                         .finish(context)
+                        .unwrap()
                         .map(|token| self.current_arg.push(token));
                     return Ok(self.return_if_not_empty(context));
                 }
@@ -51,7 +53,7 @@ impl ArgBuilder {
             _ => {}
         }
 
-        match self.current_token.apply(byte, context)? {
+        match self.token_builder.apply(byte, context)? {
             Some(token) => {
                 self.current_arg.push(token);
                 if !context.token_in_process {
@@ -64,18 +66,21 @@ impl ArgBuilder {
         }
     }
 
-    pub fn finish(&mut self, context: &mut Context) -> anyhow::Result<Option<Arg>> {
+    fn finish(&mut self, context: &mut Context) -> anyhow::Result<Option<Arg>> {
         match context.arg_builder_state {
             ArgBuilderState::Default => {
-                self.current_token
+                self.token_builder
                     .finish(context)
+                    .unwrap()
                     .map(|token| self.current_arg.push(token));
                 Ok(self.return_if_not_empty(context))
             }
             ArgBuilderState::WeakSep | ArgBuilderState::StrongSep => anyhow::bail!("Syntax error"),
         }
     }
+}
 
+impl<T: Default + Builder<Token>> ArgBuilder<T> {
     fn return_if_not_empty(&mut self, context: &mut Context) -> Option<Arg> {
         if self.current_arg.is_empty() {
             None
@@ -93,13 +98,14 @@ impl ArgBuilder {
 mod test {
     use crate::parser::{
         arg_builder::{ArgBuilder, arg::Arg},
+        builder::Builder,
         context::Context,
         token::Token,
     };
 
     #[test]
     fn check_arg_builder_apply() {
-        let mut arg_builder = ArgBuilder::default();
+        let mut arg_builder = ArgBuilder::<Token>::default();
         let mut context = Context::default();
 
         let mut result: Vec<Arg> = "echo 100"

@@ -1,7 +1,7 @@
 pub mod cli;
+pub mod parser;
 
+mod executor;
 mod global_state;
-mod inner_utils;
 mod listener;
-mod parser;
 mod program_output;

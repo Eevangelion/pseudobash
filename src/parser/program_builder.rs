@@ -1,26 +1,22 @@
 pub mod program;
 
 use crate::parser::{
-    arg_builder::{ArgBuilder, ArgBuilderState},
+    arg_builder::{ArgBuilderState, arg::Arg},
+    builder::Builder,
     context::Context,
     program_builder::program::Program,
 };
 
 #[derive(Default, Debug, PartialEq, Eq)]
-pub struct ProgramBuilder {
+pub struct ProgramBuilder<T: Default + Builder<Arg>> {
     current_program: Program,
-    arg_builder: ArgBuilder,
+    arg_builder: T,
 }
 
-impl ProgramBuilder {
-    pub fn apply(&mut self, byte: u8, context: &mut Context) -> anyhow::Result<Option<Program>> {
+impl<T: Default + Builder<Arg>> Builder<Program> for ProgramBuilder<T> {
+    fn apply(&mut self, byte: u8, context: &mut Context) -> anyhow::Result<Option<Program>> {
         match byte {
-            // b'|' => {
-            //     context.current_arg_index = 0;
-            //     self.data.delimeter = Delimeter::Pipe;
-            //     return Ok(Some(std::mem::take(self).data));
-            // }
-            b';' => match context.arg_builder_state {
+            b'|' => match context.arg_builder_state {
                 ArgBuilderState::Default => return self.finish(context),
                 ArgBuilderState::WeakSep | ArgBuilderState::StrongSep => {}
             },
@@ -33,13 +29,15 @@ impl ProgramBuilder {
         Ok(None)
     }
 
-    pub fn finish(&mut self, context: &mut Context) -> anyhow::Result<Option<Program>> {
+    fn finish(&mut self, context: &mut Context) -> anyhow::Result<Option<Program>> {
         self.arg_builder.finish(context)?.map(|arg| {
             self.current_program.push(arg);
         });
         Ok(self.return_if_not_empty())
     }
+}
 
+impl<T: Default + Builder<Arg>> ProgramBuilder<T> {
     fn return_if_not_empty(&mut self) -> Option<Program> {
         if self.current_program.is_empty() {
             None
@@ -52,7 +50,8 @@ impl ProgramBuilder {
 #[cfg(test)]
 mod test {
     use crate::parser::{
-        arg_builder::arg::Arg,
+        arg_builder::{ArgBuilder, arg::Arg},
+        builder::Builder,
         context::Context,
         program_builder::{ProgramBuilder, program::Program},
         token::Token,
@@ -60,7 +59,7 @@ mod test {
 
     #[test]
     fn check_program_builder_apply() {
-        let mut program_builder = ProgramBuilder::default();
+        let mut program_builder = ProgramBuilder::<ArgBuilder<Token>>::default();
         let mut context = Context::default();
 
         let mut result: Vec<Program> = "echo 100"
@@ -125,7 +124,7 @@ mod test {
         assert_eq!(program_builder, ProgramBuilder::default());
         assert_eq!(context, Context::default());
 
-        let mut result: Vec<Program> = "echo 100 200;"
+        let mut result: Vec<Program> = "echo 100 200"
             .as_bytes()
             .into_iter()
             .filter_map(|byte| program_builder.apply(*byte, &mut context).unwrap())
@@ -142,84 +141,6 @@ mod test {
                 Arg::new_default(vec![Token::new_default("100")]),
                 Arg::new_default(vec![Token::new_default("200")])
             ]),]
-        );
-        assert_eq!(program_builder, ProgramBuilder::default());
-        assert_eq!(context, Context::default());
-
-        let mut result: Vec<Program> = "echo 100 200; echo 100"
-            .as_bytes()
-            .into_iter()
-            .filter_map(|byte| program_builder.apply(*byte, &mut context).unwrap())
-            .collect();
-        program_builder
-            .finish(&mut context)
-            .unwrap()
-            .map(|arg| result.push(arg));
-
-        assert_eq!(
-            result,
-            vec![
-                Program::new(vec![
-                    Arg::new_default(vec![Token::new_default("echo")]),
-                    Arg::new_default(vec![Token::new_default("100")]),
-                    Arg::new_default(vec![Token::new_default("200")])
-                ]),
-                Program::new(vec![
-                    Arg::new_default(vec![Token::new_default("echo")]),
-                    Arg::new_default(vec![Token::new_default("100")]),
-                ])
-            ]
-        );
-        assert_eq!(program_builder, ProgramBuilder::default());
-        assert_eq!(context, Context::default());
-
-        let mut result: Vec<Program> = "echo '100 200; echo 100'"
-            .as_bytes()
-            .into_iter()
-            .filter_map(|byte| program_builder.apply(*byte, &mut context).unwrap())
-            .collect();
-        program_builder
-            .finish(&mut context)
-            .unwrap()
-            .map(|arg| result.push(arg));
-
-        assert_eq!(
-            result,
-            vec![Program::new(vec![
-                Arg::new_default(vec![Token::new_default("echo")]),
-                Arg::new_default(vec![Token::new_default("100 200; echo 100")]),
-            ]),]
-        );
-        assert_eq!(program_builder, ProgramBuilder::default());
-        assert_eq!(context, Context::default());
-
-        let mut result: Vec<Program> = "echo 100 200; echo 100; echo 300"
-            .as_bytes()
-            .into_iter()
-            .filter_map(|byte| program_builder.apply(*byte, &mut context).unwrap())
-            .collect();
-        program_builder
-            .finish(&mut context)
-            .unwrap()
-            .map(|arg| result.push(arg));
-
-        assert_eq!(
-            result,
-            vec![
-                Program::new(vec![
-                    Arg::new_default(vec![Token::new_default("echo")]),
-                    Arg::new_default(vec![Token::new_default("100")]),
-                    Arg::new_default(vec![Token::new_default("200")]),
-                ]),
-                Program::new(vec![
-                    Arg::new_default(vec![Token::new_default("echo")]),
-                    Arg::new_default(vec![Token::new_default("100")]),
-                ]),
-                Program::new(vec![
-                    Arg::new_default(vec![Token::new_default("echo")]),
-                    Arg::new_default(vec![Token::new_default("300")]),
-                ])
-            ]
         );
         assert_eq!(program_builder, ProgramBuilder::default());
         assert_eq!(context, Context::default());

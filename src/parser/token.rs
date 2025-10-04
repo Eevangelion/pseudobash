@@ -1,6 +1,6 @@
 use crate::{
     global_state::GlobalState,
-    parser::{arg_builder::ArgBuilderState, context::Context},
+    parser::{arg_builder::ArgBuilderState, builder::Builder, context::Context},
 };
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -17,8 +17,8 @@ pub struct Token {
     kind: TokenType,
 }
 
-impl Token {
-    pub fn apply(&mut self, byte: u8, context: &mut Context) -> anyhow::Result<Option<Self>> {
+impl Builder<Self> for Token {
+    fn apply(&mut self, byte: u8, context: &mut Context) -> anyhow::Result<Option<Self>> {
         match byte {
             b' ' | b'\n' | b'\0' => {
                 if self.buffer.len() > 0 {
@@ -47,7 +47,8 @@ impl Token {
             | b'.'
             | b'\''
             | b'"'
-            | b';' => {
+            | b';'
+            | b'|' => {
                 context.token_in_process = true;
                 self.buffer.push(byte);
                 Ok(None)
@@ -91,16 +92,18 @@ impl Token {
         }
     }
 
-    pub fn finish(&mut self, context: &mut Context) -> Option<Self> {
+    fn finish(&mut self, context: &mut Context) -> anyhow::Result<Option<Self>> {
         context.token_in_process = false;
         if self.buffer.len() > 0 {
-            Some(std::mem::take(self))
+            Ok(Some(std::mem::take(self)))
         } else {
             std::mem::take(self);
-            None
+            Ok(None)
         }
     }
+}
 
+impl Token {
     pub fn downgrade(self) -> Vec<u8> {
         self.buffer
     }
@@ -127,6 +130,7 @@ impl Token {
 #[cfg(test)]
 mod test {
     use crate::parser::{
+        builder::Builder,
         context::Context,
         token::{Token, TokenType},
     };
@@ -157,7 +161,10 @@ mod test {
             .into_iter()
             .filter_map(|byte| token.apply(*byte, &mut context).unwrap())
             .collect();
-        token.finish(&mut context).map(|token| result.push(token));
+        token
+            .finish(&mut context)
+            .unwrap()
+            .map(|token| result.push(token));
 
         assert_eq!(
             result,
@@ -171,7 +178,10 @@ mod test {
             .into_iter()
             .filter_map(|byte| token.apply(*byte, &mut context).unwrap())
             .collect();
-        token.finish(&mut context).map(|token| result.push(token));
+        token
+            .finish(&mut context)
+            .unwrap()
+            .map(|token| result.push(token));
 
         assert_eq!(
             result,
@@ -189,7 +199,10 @@ mod test {
             .into_iter()
             .filter_map(|byte| token.apply(*byte, &mut context).unwrap())
             .collect();
-        token.finish(&mut context).map(|token| result.push(token));
+        token
+            .finish(&mut context)
+            .unwrap()
+            .map(|token| result.push(token));
 
         assert_eq!(
             result,
@@ -207,7 +220,10 @@ mod test {
             .into_iter()
             .filter_map(|byte| token.apply(*byte, &mut context).unwrap())
             .collect();
-        token.finish(&mut context).map(|token| result.push(token));
+        token
+            .finish(&mut context)
+            .unwrap()
+            .map(|token| result.push(token));
 
         assert_eq!(
             result,
@@ -221,7 +237,10 @@ mod test {
             .into_iter()
             .filter_map(|byte| token.apply(*byte, &mut context).unwrap())
             .collect();
-        token.finish(&mut context).map(|token| result.push(token));
+        token
+            .finish(&mut context)
+            .unwrap()
+            .map(|token| result.push(token));
 
         assert_eq!(
             result,

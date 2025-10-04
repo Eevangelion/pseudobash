@@ -1,70 +1,86 @@
-use crate::parser::{
-    context::Context,
-    program_builder::{ProgramBuilder, program::Program},
+use std::marker::PhantomData;
+
+use crate::{
+    executor::execute::Execute,
+    parser::{builder::Builder, context::Context},
 };
 
 pub mod arg_builder;
+pub mod pipeline_builder;
 pub mod program_builder;
+pub mod token;
 
+mod builder;
 mod context;
-mod token;
+
+pub trait Parser<I: Execute>: Iterator<Item = anyhow::Result<I>> {
+    fn set_input(&mut self, input: &mut Vec<u8>);
+}
 
 #[derive(Debug, Default, PartialEq)]
-pub struct Parser {
-    program_builder: ProgramBuilder,
+pub struct CLIParser<I: Execute, T: Default + Builder<I>> {
+    pipeline_builder: T,
+    input: Vec<u8>,
+    current_index: usize,
+    finished: bool,
     context: Context,
+
+    phantom_data: PhantomData<I>,
 }
 
-impl Parser {
-    pub fn apply(&mut self, byte: u8) -> anyhow::Result<Option<Program>> {
-        self.program_builder
-            .apply(byte, &mut self.context)
-            .map_err(|e| {
-                std::mem::take(self);
-                e
-            })
-    }
-
-    pub fn finish(&mut self) -> anyhow::Result<Option<Program>> {
-        self.program_builder.finish(&mut self.context).map_err(|e| {
-            std::mem::take(self);
-            e
-        })
+impl<I: Execute, T: Default + Builder<I>> Parser<I> for CLIParser<I, T> {
+    fn set_input(&mut self, input: &mut Vec<u8>) {
+        std::mem::swap(&mut self.input, input);
+        self.current_index = 0;
+        self.finished = false
     }
 }
 
-#[cfg(test)]
-mod test {
-    use crate::parser::{
-        Parser, arg_builder::arg::Arg, program_builder::program::Program, token::Token,
-    };
+impl<I: Execute, T: Default + Builder<I>> Iterator for CLIParser<I, T> {
+    type Item = anyhow::Result<I>;
 
-    #[test]
-    fn check_program_builder_apply() {
-        let mut parser = Parser::default();
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if self.current_index == self.input.len() {
+                match self.finished {
+                    true => return None,
+                    false => {
+                        self.finished = false;
+                        match self.pipeline_builder.finish(&mut self.context) {
+                            Ok(Some(pipeline)) => return Some(Ok(pipeline)),
+                            Ok(None) => return None,
+                            Err(e) => {
+                                std::mem::take(&mut self.pipeline_builder);
+                                std::mem::take(&mut self.context);
+                                return Some(Err(e));
+                            }
+                        }
+                    }
+                }
+            }
 
-        let mut result: Vec<Program> = "echo 100"
-            .as_bytes()
-            .into_iter()
-            .filter_map(|byte| parser.apply(*byte).unwrap())
-            .collect();
-        parser.finish().unwrap().map(|arg| result.push(arg));
+            match self
+                .pipeline_builder
+                .apply(self.input[self.current_index], &mut self.context)
+            {
+                Ok(Some(pipeline)) => {
+                    self.current_index += 1;
+                    return Some(Ok(pipeline));
+                }
+                Ok(None) => {}
+                Err(e) => {
+                    while self.current_index < self.input.len()
+                        && self.input[self.current_index] != b';'
+                    {
+                        self.current_index += 1;
+                    }
+                    std::mem::take(&mut self.pipeline_builder);
+                    std::mem::take(&mut self.context);
+                    return Some(Err(e));
+                }
+            }
 
-        assert_eq!(
-            result,
-            vec![Program::new(vec![
-                Arg::new_default(vec![Token::new_default("echo")]),
-                Arg::new_default(vec![Token::new_default("100")])
-            ]),]
-        );
-        assert_eq!(parser, Parser::default());
-
-        let _result: Vec<Program> = "echo '100"
-            .as_bytes()
-            .into_iter()
-            .filter_map(|byte| parser.apply(*byte).unwrap())
-            .collect();
-        assert!(parser.finish().is_err());
-        assert_eq!(parser, Parser::default());
+            self.current_index += 1;
+        }
     }
 }
