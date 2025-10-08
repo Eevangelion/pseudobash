@@ -10,6 +10,8 @@ use pseudobash::{
 };
 
 fn main() {
+    println!("Welcome to Pseudobash v{}!\n", env!("CARGO_PKG_VERSION"));
+
     let mut cli: CLI<
         Pipeline,
         CLIParser<Pipeline, PipelineBuilder<ProgramBuilder<ArgBuilder<Token>>>>,

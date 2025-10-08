@@ -23,7 +23,7 @@ impl Execute for Pipeline {
         self,
         gs: &mut crate::global_state::GlobalState,
     ) -> anyhow::Result<crate::program_output::ProgramOutput> {
-        let mut last_output = ProgramOutput::new(0, vec![], vec![]);
+        let mut last_output = ProgramOutput::default();
         for mut program in self.data {
             match last_output.code {
                 0 => {

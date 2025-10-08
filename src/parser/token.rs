@@ -3,7 +3,7 @@ use crate::{
     parser::{arg_builder::ArgBuilderState, builder::Builder, context::Context},
 };
 
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
 enum TokenType {
     #[default]
     Default,
@@ -11,7 +11,7 @@ enum TokenType {
     VarGetter,
 }
 
-#[derive(Default, Debug, PartialEq, Eq)]
+#[derive(Default, Debug, PartialEq, Eq, Clone)]
 pub struct Token {
     buffer: Vec<u8>,
     kind: TokenType,

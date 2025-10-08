@@ -75,7 +75,8 @@ impl<T: Default + Builder<Token>> Builder<Arg> for ArgBuilder<T> {
                     .map(|token| self.current_arg.push(token));
                 Ok(self.return_if_not_empty(context))
             }
-            ArgBuilderState::WeakSep | ArgBuilderState::StrongSep => anyhow::bail!("Syntax error"),
+            ArgBuilderState::WeakSep => anyhow::bail!("Expected finishing \""),
+            ArgBuilderState::StrongSep => anyhow::bail!("Expected finishing '"),
         }
     }
 }

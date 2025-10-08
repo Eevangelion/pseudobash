@@ -1,6 +1,6 @@
 use std::{fmt::Display, process::Output};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Default, PartialEq, Eq)]
 pub struct ProgramOutput {
     pub code: i32,
     pub stdout: Vec<u8>,

@@ -41,7 +41,7 @@ impl Execute for Program {
         let stdin = std::mem::take(&mut self.stdin);
         let prep_program = self.prepare(gs);
         if prep_program.len() == 0 {
-            return Ok(ProgramOutput::new(0, vec![], vec![]));
+            return Ok(ProgramOutput::default());
         }
 
         let mut command = std::process::Command::new(&prep_program[0]);
