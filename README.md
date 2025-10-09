@@ -5,16 +5,16 @@
 ## Особенности
 
 - **Высокая производительность** благодаря Rust
-- **Встроенные команды** (`cat`, `echo`, `wc`, `pwd`, `exit`)
+- **Стандартные команды** (`cat`, `echo`, `wc`, `pwd`, `exit`, `grep`)
 - **Поддержка внешних команд** через `PATH`
-- **Поддержка seq** **`;`**
+- **Поддержка seq** **`;` и pipe `|`**
 - **Минимальное количество зависимостей**: `std`, `anyhow`
 - **Работа с окружением**
 - **Документируемая архитектура** в `docs`
 
 ## Требования
 
-- **Операционная система**: Linux (Ubuntu, Debian, CentOS, etc.)
+- **Операционная система**: Linux (Ubuntu, Debian, CentOS, etc.), Windows (98+)
 - **Rust**: версия 1.70.0 или выше
 - **Cargo**: система сборки Rust
 
@@ -57,6 +57,8 @@ cargo build -r --target-dir .
 Вы увидите приглашение ввода:
 
 ```bash
+Welcome to Pseudobash v2.2.1!
+
 >>>
 ```
 
@@ -76,24 +78,28 @@ cargo test -r
 >>> cat ./Cargo.toml
 [package]
 name = "pseudobash"
-version = "2.1.0"
+version = "2.2.1"
 edition = "2024"
 
 [dependencies]
 anyhow = "1.0.99"
-libc = "0.2.175"
->>>
-```
-
-```bash
->>> echo 100
-100
 >>> 
 ```
 
 ```bash
->>> x=ec
->>> y=ho
+>>> cat ./Cargo.toml | wc
+7 14 99
+>>>  
+```
+
+```bash
+>>> pwd | wc
+1 1 22
+>>>
+```
+
+```bash
+>>> x=ec y=ho 
 >>> $x$y 100
 100
 >>> 
@@ -104,6 +110,19 @@ libc = "0.2.175"
 100
 200
 >>> 
+```
+
+```bash
+>>> grep -A 2 "grep" ./utils/grep/src/main.rs
+    grep::{
+        args::Args,
+        grep::{Grep, matcher::GrepMatcher},
+    },
+};
+        Ok(mut grep) => grep.run(),
+        Err(e) => {
+            eprintln!("{}", e);
+>>>
 ```
 
 ## Планы развития
