@@ -1,17 +1,28 @@
-use std::marker::PhantomData;
-
-use crate::{
-    executor::execute::Execute,
-    parser::{builder::Builder, context::Context},
-};
-
-pub mod arg_builder;
-pub mod pipeline_builder;
-pub mod program_builder;
-pub mod token;
-
+mod arg_builder;
 mod builder;
 mod context;
+mod pipeline_builder;
+mod program_builder;
+mod token;
+
+use {
+    crate::{
+        executor::execute::Execute,
+        parser::{
+            arg_builder::ArgBuilder,
+            builder::Builder,
+            context::Context,
+            pipeline_builder::{PipelineBuilder, pipeline::Pipeline},
+            program_builder::ProgramBuilder,
+            token::Token,
+        },
+    },
+    std::marker::PhantomData,
+};
+
+pub type DefaultExecutable = Pipeline;
+pub type DefaultParser =
+    CLIParser<DefaultExecutable, PipelineBuilder<ProgramBuilder<ArgBuilder<Token>>>>;
 
 pub trait Parser<I: Execute>: Iterator<Item = anyhow::Result<I>> {
     fn set_input(&mut self, input: &mut Vec<u8>);

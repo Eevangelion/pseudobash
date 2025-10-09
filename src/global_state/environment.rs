@@ -66,10 +66,14 @@ impl Default for Environment {
                     .map_err(|e| anyhow::Error::new(e))
             })
             .map(|path| path.to_string_lossy().to_string())
-            .map(|mut string| {
-                string.push(':');
-                string.push_str(&var("PATH").unwrap());
-                string
+            .and_then(|mut string| {
+                var("PATH")
+                    .map(|value| {
+                        string.push(':');
+                        string.push_str(&value);
+                        string
+                    })
+                    .map_err(|e| anyhow::Error::new(e))
             }) {
             Ok(path_value) => {
                 result.map.insert("PATH".to_string(), path_value);

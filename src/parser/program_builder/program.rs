@@ -1,8 +1,9 @@
-use std::{io::Write, process::Stdio};
-
-use crate::{
-    executor::execute::Execute, global_state::GlobalState, parser::arg_builder::arg::Arg,
-    program_output::ProgramOutput,
+use {
+    crate::{
+        executor::execute::Execute, global_state::GlobalState, parser::arg_builder::arg::Arg,
+        program_output::ProgramOutput,
+    },
+    std::{io::Write, process::Stdio},
 };
 
 #[derive(Default, Debug, PartialEq, Eq)]

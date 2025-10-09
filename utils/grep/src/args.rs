@@ -1,5 +1,13 @@
 use {
-    crate::grep::LineIterator,
+    crate::{
+        builder::Builder,
+        grep::{
+            GrepBuilder,
+            flags::Flags,
+            line_iterator::HaystackIterator,
+            matcher::{GrepMatcher, Matcher},
+        },
+    },
     std::{
         fs::File,
         io::{BufRead, BufReader, stdin},
@@ -9,22 +17,28 @@ use {
 #[derive(clap::Parser)]
 #[command(version, about, long_about = None)]
 pub struct Args {
-    /// The flag for a full match
+    /// Search for full matches only
     #[arg(short = 'w', long, default_value_t = false)]
-    pub full_matching: bool,
+    full_matching: bool,
 
-    /// The needle
-    //#[arg(short, long)]
-    pub needle: String,
+    /// Perform case insensitive search
+    #[arg(short = 'i', long, default_value_t = false)]
+    case_insensitive: bool,
 
-    /// The path to the haystack file
-    //#[arg(short, long)]
-    pub file_path: Option<std::path::PathBuf>,
+    /// Lines of trailing context to show after matches
+    #[arg(short = 'A', long, default_value_t = 0)]
+    trace: usize,
+
+    /// The search pattern (needle)
+    needle: String,
+
+    /// The file to search through (haystack)
+    haystack_file_path: Option<std::path::PathBuf>,
 }
 
-impl Args {
-    pub fn get_haystack(&self) -> anyhow::Result<LineIterator> {
-        match &self.file_path {
+impl<'a> Builder<anyhow::Result<HaystackIterator<'a>>, Flags> for &Args {
+    fn build(&self, _: Flags) -> anyhow::Result<HaystackIterator<'a>> {
+        match &self.haystack_file_path {
             Some(path) => Ok(Box::new(
                 BufReader::new(File::open(path)?)
                     .lines()
@@ -38,3 +52,21 @@ impl Args {
         }
     }
 }
+
+impl<M: Matcher> Builder<anyhow::Result<M>, Flags> for &Args {
+    fn build(&self, helper: Flags) -> anyhow::Result<M> {
+        M::new(&self.needle, helper)
+    }
+}
+
+impl Builder<anyhow::Result<Flags>, ()> for &Args {
+    fn build(&self, _: ()) -> anyhow::Result<Flags> {
+        Ok(Flags {
+            full_matching: self.full_matching,
+            case_insensitive: self.case_insensitive,
+            trace: self.trace,
+        })
+    }
+}
+
+impl<'a> GrepBuilder<'a, GrepMatcher> for &Args {}

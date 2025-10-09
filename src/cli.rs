@@ -3,11 +3,13 @@ use {
         executor::{Executor, execute::Execute},
         global_state::GlobalState,
         listener::Listener,
-        parser::Parser,
+        parser::{DefaultExecutable, DefaultParser, Parser},
         program_output::ProgramOutput,
     },
     std::{io::Write, marker::PhantomData},
 };
+
+pub type DefaultCLI = CLI<DefaultExecutable, DefaultParser>;
 
 #[derive(Default)]
 pub struct CLI<E: Execute, P: Default + Parser<E>> {
@@ -53,23 +55,14 @@ impl<E: Execute, P: Default + Parser<E>> CLI<E, P> {
 #[cfg(test)]
 mod test {
     use crate::{
-        cli::CLI,
-        parser::{
-            CLIParser, Parser,
-            arg_builder::ArgBuilder,
-            pipeline_builder::{PipelineBuilder, pipeline::Pipeline},
-            program_builder::ProgramBuilder,
-            token::Token,
-        },
+        cli::{CLI, DefaultCLI},
+        parser::Parser,
         program_output::ProgramOutput,
     };
 
     #[test]
     fn check_var_setter() {
-        let mut cli: CLI<
-            Pipeline,
-            CLIParser<Pipeline, PipelineBuilder<ProgramBuilder<ArgBuilder<Token>>>>,
-        > = CLI::default();
+        let mut cli: DefaultCLI = CLI::default();
 
         cli.parser.set_input(&mut b"  qwe=1278\n".to_vec());
         let output: Vec<ProgramOutput> = (&mut cli.parser)
@@ -178,10 +171,7 @@ mod test {
 
     #[test]
     fn check_var_getter() {
-        let mut cli: CLI<
-            Pipeline,
-            CLIParser<Pipeline, PipelineBuilder<ProgramBuilder<ArgBuilder<Token>>>>,
-        > = CLI::default();
+        let mut cli: DefaultCLI = CLI::default();
 
         cli.parser.set_input(&mut b" echo $PWD\n".to_vec());
         let output: Vec<ProgramOutput> = (&mut cli.parser)
@@ -245,10 +235,7 @@ mod test {
 
     #[test]
     fn check_error() {
-        let mut cli: CLI<
-            Pipeline,
-            CLIParser<Pipeline, PipelineBuilder<ProgramBuilder<ArgBuilder<Token>>>>,
-        > = CLI::default();
+        let mut cli: DefaultCLI = CLI::default();
 
         cli.parser.set_input(&mut b"  '1'\n".to_vec());
         let output: Vec<anyhow::Result<ProgramOutput>> = (&mut cli.parser)
