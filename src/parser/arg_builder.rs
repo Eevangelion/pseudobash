@@ -2,6 +2,8 @@ pub mod arg;
 
 use crate::parser::{arg_builder::arg::Arg, builder::Builder, context::Context, token::Token};
 
+pub type DefaultArgBuilder = ArgBuilder<Token>;
+
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
 pub enum ArgBuilderState {
     #[default]
@@ -12,12 +14,12 @@ pub enum ArgBuilderState {
 }
 
 #[derive(Default, Debug, PartialEq, Eq)]
-pub struct ArgBuilder<T: Default + Builder<Token>> {
+pub struct ArgBuilder<T: Default + Builder<Token, Context>> {
     current_arg: Arg,
     token_builder: T,
 }
 
-impl<T: Default + Builder<Token>> Builder<Arg> for ArgBuilder<T> {
+impl<T: Default + Builder<Token, Context>> Builder<Arg, Context> for ArgBuilder<T> {
     fn apply(&mut self, byte: u8, context: &mut Context) -> anyhow::Result<Option<Arg>> {
         match byte {
             b'\'' => match context.arg_builder_state {
@@ -81,7 +83,7 @@ impl<T: Default + Builder<Token>> Builder<Arg> for ArgBuilder<T> {
     }
 }
 
-impl<T: Default + Builder<Token>> ArgBuilder<T> {
+impl<T: Default + Builder<Token, Context>> ArgBuilder<T> {
     fn return_if_not_empty(&mut self, context: &mut Context) -> Option<Arg> {
         if self.current_arg.is_empty() {
             None

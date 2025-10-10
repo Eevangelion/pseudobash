@@ -1,19 +1,21 @@
 pub mod program;
 
 use crate::parser::{
-    arg_builder::{ArgBuilderState, arg::Arg},
+    arg_builder::{ArgBuilderState, DefaultArgBuilder, arg::Arg},
     builder::Builder,
     context::Context,
     program_builder::program::Program,
 };
 
+pub type DefaultProgramBuilder = ProgramBuilder<DefaultArgBuilder>;
+
 #[derive(Default, Debug, PartialEq, Eq)]
-pub struct ProgramBuilder<T: Default + Builder<Arg>> {
+pub struct ProgramBuilder<T: Default + Builder<Arg, Context>> {
     current_program: Program,
     arg_builder: T,
 }
 
-impl<T: Default + Builder<Arg>> Builder<Program> for ProgramBuilder<T> {
+impl<T: Default + Builder<Arg, Context>> Builder<Program, Context> for ProgramBuilder<T> {
     fn apply(&mut self, byte: u8, context: &mut Context) -> anyhow::Result<Option<Program>> {
         match byte {
             b'|' => match context.arg_builder_state {
@@ -37,7 +39,7 @@ impl<T: Default + Builder<Arg>> Builder<Program> for ProgramBuilder<T> {
     }
 }
 
-impl<T: Default + Builder<Arg>> ProgramBuilder<T> {
+impl<T: Default + Builder<Arg, Context>> ProgramBuilder<T> {
     fn return_if_not_empty(&mut self) -> Option<Program> {
         if self.current_program.is_empty() {
             None

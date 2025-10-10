@@ -9,37 +9,39 @@ use {
     crate::{
         executor::execute::Execute,
         parser::{
-            arg_builder::ArgBuilder,
             builder::Builder,
             context::Context,
-            pipeline_builder::{PipelineBuilder, pipeline::Pipeline},
-            program_builder::ProgramBuilder,
-            token::Token,
+            pipeline_builder::{DefaultPipelineBuilder, pipeline::Pipeline},
+            program_builder::{DefaultProgramBuilder, program::Program},
         },
     },
     std::marker::PhantomData,
 };
 
 pub type DefaultExecutable = Pipeline;
-pub type DefaultParser =
-    CLIParser<DefaultExecutable, PipelineBuilder<ProgramBuilder<ArgBuilder<Token>>>>;
+pub type DefaultBuilder = DefaultPipelineBuilder;
+pub type DefaultContext = Context;
+
+pub type DefaultParser = CLIParser<DefaultContext, DefaultExecutable, DefaultBuilder>;
+pub type _DefaultProgramParser = CLIParser<DefaultContext, Program, DefaultProgramBuilder>;
 
 pub trait Parser<I: Execute>: Iterator<Item = anyhow::Result<I>> {
     fn set_input(&mut self, input: &mut Vec<u8>);
 }
 
 #[derive(Debug, Default, PartialEq)]
-pub struct CLIParser<I: Execute, T: Default + Builder<I>> {
-    pipeline_builder: T,
+pub struct CLIParser<C: Default, E: Execute, B: Default + Builder<E, C>> {
+    builder: B,
+    context: C,
+
     input: Vec<u8>,
     current_index: usize,
     finished: bool,
-    context: Context,
 
-    phantom_data: PhantomData<I>,
+    phantom_data: PhantomData<E>,
 }
 
-impl<I: Execute, T: Default + Builder<I>> Parser<I> for CLIParser<I, T> {
+impl<C: Default, E: Execute, B: Default + Builder<E, C>> Parser<E> for CLIParser<C, E, B> {
     fn set_input(&mut self, input: &mut Vec<u8>) {
         std::mem::swap(&mut self.input, input);
         self.current_index = 0;
@@ -47,8 +49,8 @@ impl<I: Execute, T: Default + Builder<I>> Parser<I> for CLIParser<I, T> {
     }
 }
 
-impl<I: Execute, T: Default + Builder<I>> Iterator for CLIParser<I, T> {
-    type Item = anyhow::Result<I>;
+impl<C: Default, E: Execute, B: Default + Builder<E, C>> Iterator for CLIParser<C, E, B> {
+    type Item = anyhow::Result<E>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -57,11 +59,11 @@ impl<I: Execute, T: Default + Builder<I>> Iterator for CLIParser<I, T> {
                     true => return None,
                     false => {
                         self.finished = false;
-                        match self.pipeline_builder.finish(&mut self.context) {
-                            Ok(Some(pipeline)) => return Some(Ok(pipeline)),
+                        match self.builder.finish(&mut self.context) {
+                            Ok(Some(executable)) => return Some(Ok(executable)),
                             Ok(None) => return None,
                             Err(e) => {
-                                std::mem::take(&mut self.pipeline_builder);
+                                std::mem::take(&mut self.builder);
                                 std::mem::take(&mut self.context);
                                 return Some(Err(e));
                             }
@@ -71,7 +73,7 @@ impl<I: Execute, T: Default + Builder<I>> Iterator for CLIParser<I, T> {
             }
 
             match self
-                .pipeline_builder
+                .builder
                 .apply(self.input[self.current_index], &mut self.context)
             {
                 Ok(Some(pipeline)) => {
@@ -85,7 +87,7 @@ impl<I: Execute, T: Default + Builder<I>> Iterator for CLIParser<I, T> {
                     {
                         self.current_index += 1;
                     }
-                    std::mem::take(&mut self.pipeline_builder);
+                    std::mem::take(&mut self.builder);
                     std::mem::take(&mut self.context);
                     return Some(Err(e));
                 }

@@ -1,17 +1,22 @@
 pub mod pipeline;
 
 use crate::parser::{
-    arg_builder::ArgBuilderState, builder::Builder, pipeline_builder::pipeline::Pipeline,
-    program_builder::program::Program,
+    arg_builder::ArgBuilderState,
+    builder::Builder,
+    context::Context,
+    pipeline_builder::pipeline::Pipeline,
+    program_builder::{DefaultProgramBuilder, program::Program},
 };
 
+pub type DefaultPipelineBuilder = PipelineBuilder<DefaultProgramBuilder>;
+
 #[derive(Default, Debug, PartialEq, Eq)]
-pub struct PipelineBuilder<T: Default + Builder<Program>> {
+pub struct PipelineBuilder<T: Default + Builder<Program, Context>> {
     current_pipeline: Pipeline,
     program_builder: T,
 }
 
-impl<T: Default + Builder<Program>> Builder<Pipeline> for PipelineBuilder<T> {
+impl<T: Default + Builder<Program, Context>> Builder<Pipeline, Context> for PipelineBuilder<T> {
     fn apply(
         &mut self,
         byte: u8,
@@ -42,7 +47,7 @@ impl<T: Default + Builder<Program>> Builder<Pipeline> for PipelineBuilder<T> {
     }
 }
 
-impl<T: Default + Builder<Program>> PipelineBuilder<T> {
+impl<T: Default + Builder<Program, Context>> PipelineBuilder<T> {
     fn return_if_not_empty(&mut self) -> Option<Pipeline> {
         if self.current_pipeline.is_empty() {
             None

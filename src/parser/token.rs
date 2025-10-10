@@ -17,7 +17,7 @@ pub struct Token {
     kind: TokenType,
 }
 
-impl Builder<Self> for Token {
+impl Builder<Self, Context> for Token {
     fn apply(&mut self, byte: u8, context: &mut Context) -> anyhow::Result<Option<Self>> {
         match byte {
             b' ' | b'\n' | b'\0' => {
