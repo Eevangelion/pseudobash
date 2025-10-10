@@ -14,7 +14,7 @@
 
 ## Требования
 
-- **Операционная система**: Linux (Ubuntu, Debian, CentOS, etc.), Windows (98+)
+- **Операционная система**: Linux (Ubuntu, Debian, CentOS, etc.), (Требует проверки Windows)
 - **Rust**: версия 1.70.0 или выше
 - **Cargo**: система сборки Rust
 
@@ -39,19 +39,19 @@ cd ./pseudobash
 Соберите все дополнительные программы:
 
 ```bash
-cd utils && find . -name "Cargo.toml" -exec dirname {} \; | xargs -I {} sh -c 'cd {} && cargo build -r --target-dir ../'; cd ../
+cd utils && find . -name "Cargo.toml" -exec dirname {} \; | xargs -I {} sh -c 'cd {} && cargo build --profile bin --target-dir ../'; cd ../
 ```
 
 Соберите `pseudobash`:
 
 ```bash
-cargo build -r --target-dir .
+cargo build --profile bin --target-dir .
 ```
 
 ### Шаг 4: Запустите `pseudobash`:
 
 ```bash
-./release/pseudobash
+./bin/pseudobash
 ```
 
 Вы увидите приглашение ввода:
@@ -106,7 +106,7 @@ anyhow = "1.0.99"
 ```
 
 ```bash
->>> echo 100; echo 200
+>>> echo 100; echo 200 | cat
 100
 200
 >>> 

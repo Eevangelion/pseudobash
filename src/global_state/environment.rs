@@ -61,7 +61,7 @@ impl Default for Environment {
                     .map(|path| path.to_owned())
             })
             .and_then(|path| {
-                path.join("../utils/release")
+                path.join("../utils/bin")
                     .canonicalize()
                     .map_err(|e| anyhow::Error::new(e))
             })

@@ -5,3 +5,10 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.99"
+
+[profile.bin]
+inherits = "release"
+opt-level = 3
+debug = false
+lto = true
+codegen-units = 1

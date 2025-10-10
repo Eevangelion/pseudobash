@@ -37,18 +37,7 @@ impl Builder<Self, Context> for Token {
                     Ok(None)
                 }
             }
-            b'a'..=b'z'
-            | b'A'..=b'Z'
-            | b'0'..=b'9'
-            | b'-'
-            | b'+'
-            | b'/'
-            | b'_'
-            | b'.'
-            | b'\''
-            | b'"'
-            | b';'
-            | b'|' => {
+            b'>'..=b'~' | b'('..=b'9' | b'\'' | b'"' | b';' | b'!' | b'#' | b'%' | b'<' => {
                 context.token_in_process = true;
                 self.buffer.push(byte);
                 Ok(None)

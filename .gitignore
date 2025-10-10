@@ -22,5 +22,7 @@ target
 
 .env
 utils/release
+utils/bin
 release
+bin
 *.json
