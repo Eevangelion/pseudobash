@@ -32,8 +32,8 @@ impl Matcher for GrepMatcher {
             .build()
             .map_err(|e| anyhow::Error::new(e))
             .map(|regex| GrepMatcher {
-                _needle: needle,
                 regex,
+                _needle: needle,
                 _flags: flags,
             })
     }
