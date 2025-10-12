@@ -1,7 +1,12 @@
 use {
     crate::{
         builder::Builder,
-        grep::{GrepBuilder, flags::Flags, haystack_iterator::HaystackIterator, matcher::Matcher},
+        grep::{
+            GrepBuilder,
+            flags::Flags,
+            line_iterator::HaystackIterator,
+            matcher::{GrepMatcher, Matcher},
+        },
     },
     std::{
         fs::File,
@@ -56,12 +61,12 @@ impl<M: Matcher> Builder<anyhow::Result<M>, Flags> for &Args {
 
 impl Builder<anyhow::Result<Flags>, ()> for &Args {
     fn build(&self, _: ()) -> anyhow::Result<Flags> {
-        let mut flags = Flags::default();
-        flags.full_matching = self.full_matching;
-        flags.case_insensitive = self.case_insensitive;
-        flags.trace = self.trace;
-        Ok(flags)
+        Ok(Flags {
+            full_matching: self.full_matching,
+            case_insensitive: self.case_insensitive,
+            trace: self.trace,
+        })
     }
 }
 
-impl<'a, M: Matcher> GrepBuilder<'a, M> for &Args {}
+impl<'a> GrepBuilder<'a, GrepMatcher> for &Args {}
