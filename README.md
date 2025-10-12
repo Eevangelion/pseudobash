@@ -5,7 +5,7 @@
 ## Особенности
 
 - **Высокая производительность** благодаря Rust
-- **Стандартные команды** (`cat`, `echo`, `wc`, `pwd`, `exit`, `grep`)
+- **Стандартные команды** (`cat`, `echo`, `wc`, `pwd`, `exit`, `grep`, `cd`, `ls`)
 - **Поддержка внешних команд** через `PATH`
 - **Поддержка seq** **`;` и pipe `|`**
 - **Минимальное количество зависимостей**: `std`, `anyhow`
@@ -14,7 +14,7 @@
 
 ## Требования
 
-- **Операционная система**: Linux (Ubuntu, Debian, CentOS, etc.), (Требует проверки Windows)
+- **Операционная система**: Linux (Ubuntu, Debian, CentOS, etc.)
 - **Rust**: версия 1.70.0 или выше
 - **Cargo**: система сборки Rust
 
@@ -57,7 +57,7 @@ cargo build --profile bin --target-dir .
 Вы увидите приглашение ввода:
 
 ```bash
-Welcome to Pseudobash v2.2.1!
+Welcome to Pseudobash v2.2.2!
 
 >>>
 ```
@@ -78,7 +78,7 @@ cargo test -r
 >>> cat ./Cargo.toml
 [package]
 name = "pseudobash"
-version = "2.2.1"
+version = "2.2.2"
 edition = "2024"
 
 [dependencies]

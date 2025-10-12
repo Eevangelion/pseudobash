@@ -57,13 +57,13 @@ impl Default for Environment {
             .map_err(|e| anyhow::Error::new(e))
             .and_then(|path| {
                 path.parent()
-                    .ok_or(anyhow::Error::msg(""))
+                    .ok_or(anyhow::Error::msg("Failed to get parent dir"))
                     .map(|path| path.to_owned())
             })
             .and_then(|path| {
-                path.join("../utils/bin")
-                    .canonicalize()
-                    .map_err(|e| anyhow::Error::new(e))
+                path.join("../utils/bin").canonicalize().map_err(|e| {
+                    anyhow::Error::msg(format!("{}: {}/../utils/bin", e, path.to_string_lossy()))
+                })
             })
             .map(|path| path.to_string_lossy().to_string())
             .and_then(|mut string| {

@@ -35,14 +35,16 @@ impl Program {
 }
 
 impl Execute for Program {
-    fn execute(
-        mut self,
-        gs: &mut crate::global_state::GlobalState,
-    ) -> anyhow::Result<crate::program_output::ProgramOutput> {
+    fn execute(mut self, gs: &mut GlobalState) -> anyhow::Result<ProgramOutput> {
         let stdin = std::mem::take(&mut self.stdin);
         let prep_program = self.prepare(gs);
         if prep_program.len() == 0 {
             return Ok(ProgramOutput::default());
+        }
+
+        match gs.utils.try_exec(&prep_program, &mut gs.environment) {
+            Some(output) => return Ok(output),
+            None => {}
         }
 
         let mut command = std::process::Command::new(&prep_program[0]);
