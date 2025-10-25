@@ -34,7 +34,7 @@ fn exit(_: &Vec<String>, _: &mut Environment) -> ProgramOutput {
     std::process::exit(0)
 }
 
-fn cd(args: &Vec<String>, _: &mut Environment) -> ProgramOutput {
+fn cd(args: &Vec<String>, env: &mut Environment) -> ProgramOutput {
     let target_dir = if args.len() < 2 {
         std::env::var("HOME").unwrap_or_else(|_| {
             eprintln!("cd: HOME not set");
@@ -49,5 +49,6 @@ fn cd(args: &Vec<String>, _: &mut Environment) -> ProgramOutput {
         return ProgramOutput::new(1, vec![], vec![]);
     }
 
+    env.set_current_dir(target_dir);
     ProgramOutput::new(0, vec![], vec![])
 }

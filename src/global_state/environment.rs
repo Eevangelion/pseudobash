@@ -47,12 +47,12 @@ impl Environment {
         self.map.iter()
     }
 
-    pub fn get_current_dir() {
-
+    pub fn get_current_dir(&self) -> &str {
+        &self.current_dir
     }
 
-    pub fn set_current_dir() {
-        
+    pub fn set_current_dir(&mut self, new_dir: String) {
+        self.current_dir = new_dir;
     }
 }
 
