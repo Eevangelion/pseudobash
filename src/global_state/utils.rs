@@ -22,10 +22,32 @@ impl Default for Utils {
             "exit".to_string(),
             exit as fn(args: &Vec<String>, env: &mut Environment) -> ProgramOutput,
         );
+        utils.insert(
+            "cd".to_string(),
+            cd as fn(args: &Vec<String>, env: &mut Environment) -> ProgramOutput,
+        );
         Self { utils }
     }
 }
 
 fn exit(_: &Vec<String>, _: &mut Environment) -> ProgramOutput {
     std::process::exit(0)
+}
+
+fn cd(args: &Vec<String>, _: &mut Environment) -> ProgramOutput {
+    let target_dir = if args.len() < 2 {
+        std::env::var("HOME").unwrap_or_else(|_| {
+            eprintln!("cd: HOME not set");
+            return String::new();
+        })
+    } else {
+        args[1].clone()
+    };
+
+    if let Err(e) = std::env::set_current_dir(&target_dir) {
+        eprintln!("cd: {}: {}", e, target_dir);
+        return ProgramOutput::new(1, vec![], vec![]);
+    }
+
+    ProgramOutput::new(0, vec![], vec![])
 }

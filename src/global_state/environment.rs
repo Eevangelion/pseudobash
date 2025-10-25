@@ -60,6 +60,10 @@ impl Default for Environment {
     fn default() -> Self {
         let mut result = Self {
             map: vars().collect(),
+            current_dir: std::env::current_dir()
+                .unwrap_or_else(|_| std::path::PathBuf::from(".") )
+                .to_string_lossy()
+                .to_string(),
         };
 
         match current_exe()
