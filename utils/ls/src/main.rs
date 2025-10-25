@@ -3,7 +3,7 @@ pub fn main() {
         Ok(cur_dir) => {
             let paths = std::fs::read_dir(&cur_dir).unwrap();
             for path in paths {
-                println!("{}", path.unwrap().path().display());
+                println!("{}", path.unwrap().file_name().display());
             }
         },
         Err(e) => {
