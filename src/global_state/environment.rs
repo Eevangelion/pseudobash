@@ -6,7 +6,6 @@ use std::{
 #[derive(Clone)]
 pub struct Environment {
     map: HashMap<String, String>,
-    current_dir: String,
 }
 
 impl Environment {
@@ -46,24 +45,12 @@ impl Environment {
     pub fn vars(&self) -> Iter<String, String> {
         self.map.iter()
     }
-
-    pub fn get_current_dir(&self) -> &str {
-        &self.current_dir
-    }
-
-    pub fn set_current_dir(&mut self, new_dir: String) {
-        self.current_dir = new_dir;
-    }
 }
 
 impl Default for Environment {
     fn default() -> Self {
         let mut result = Self {
             map: vars().collect(),
-            current_dir: std::env::current_dir()
-                .unwrap_or_else(|_| std::path::PathBuf::from(".") )
-                .to_string_lossy()
-                .to_string(),
         };
 
         match current_exe()

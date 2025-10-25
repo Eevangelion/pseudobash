@@ -49,6 +49,5 @@ fn cd(args: &Vec<String>, env: &mut Environment) -> ProgramOutput {
         return ProgramOutput::new(1, vec![], vec![]);
     }
 
-    env.set_current_dir(target_dir);
     ProgramOutput::new(0, vec![], vec![])
 }
